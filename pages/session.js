@@ -30,7 +30,7 @@ export default {
 			// see if we have a record to load
 			const route = VueRouter.useRoute();
 			if (route.params.id) {
-				await load_observations(route.params.id);
+				await load_session_and_observations(route.params.id);
 				data.currentPage = s_form.name;
 			} else {
 				data.currentPage = 'New Session';
@@ -62,11 +62,22 @@ export default {
 				todays_date_offset.toISOString().split("T")[1].substring(0, 5);
 			s_form.date = todays_date_offset.toISOString().split("T")[0];
 			s_form.time = todays_date_offset.toISOString().split("T")[1].substring(0, 5);
-		}1
+		}
 		async function load_observations(which_id) {
 			console.log('> load_obversations');
-			let loaded_sessions = await data.loadRecord('Sessions', which_id);
 			let loaded_observations = await data.loadGraphQLRecords('Observations', 'id note date_created date_updated image{id} is_starred attendee_code dimension_id{id} indicator_id{id}}', 'session_id', which_id);
+			s_form.observations = loaded_observations.data['Observations'];
+			for (let index = 0; index < s_form.observations.length; index++) {
+				s_form.observations[index].dimension_id = (s_form.observations[index].dimension_id) ? s_form.observations[index].dimension_id.id : null;
+				s_form.observations[index].indicator_id = (s_form.observations[index].indicator_id) ? s_form.observations[index].indicator_id.id : null;
+				s_form.observations[index].time_created = Quasar.date.formatDate(s_form.observations[index].date_created, 'h:mm a');
+				s_form.observations[index].new_image = '';
+			}
+		}
+		async function load_session_and_observations(which_id) {
+			console.log('> load_session_and_observations');
+			let loaded_sessions = await data.loadRecord('Sessions', which_id);
+			// let loaded_observations = await data.loadGraphQLRecords('Observations', 'id note date_created date_updated image{id} is_starred attendee_code dimension_id{id} indicator_id{id}}', 'session_id', which_id);
 			// assign to s_form
 			s_form.id = loaded_sessions.id;
 			s_form.name = loaded_sessions.name;
@@ -75,6 +86,7 @@ export default {
 			s_form.location_id = loaded_sessions.location_id;
 			s_form.framework_id = loaded_sessions.framework_id;
 			s_form.partner_id = loaded_sessions.partner_id;
+			s_form.attendance_count = loaded_sessions.attendance_count;
 			s_form.slider_1 = loaded_sessions.slider_1;
 			s_form.slider_2 = loaded_sessions.slider_2;
 			s_form.slider_3 = loaded_sessions.slider_3;
@@ -83,14 +95,16 @@ export default {
 			s_form.successes = loaded_sessions.successes;
 			s_form.summary = loaded_sessions.summary;
 			s_form.complete = loaded_sessions.complete;
-			s_form.observations = loaded_observations.data['Observations'];
+			// now load the observations
+			load_observations(which_id);
+			// s_form.observations = loaded_observations.data['Observations'];
 			// post process observations
-			for (let index = 0; index < s_form.observations.length; index++) {
-				s_form.observations[index].dimension_id = (s_form.observations[index].dimension_id) ? s_form.observations[index].dimension_id.id : null;
-				s_form.observations[index].indicator_id = (s_form.observations[index].indicator_id) ? s_form.observations[index].indicator_id.id : null;
-				s_form.observations[index].time_created = Quasar.date.formatDate(s_form.observations[index].date_created, 'h:mm a');
-				s_form.observations[index].new_image = '';
-			}
+			// for (let index = 0; index < s_form.observations.length; index++) {
+			// 	s_form.observations[index].dimension_id = (s_form.observations[index].dimension_id) ? s_form.observations[index].dimension_id.id : null;
+			// 	s_form.observations[index].indicator_id = (s_form.observations[index].indicator_id) ? s_form.observations[index].indicator_id.id : null;
+			// 	s_form.observations[index].time_created = Quasar.date.formatDate(s_form.observations[index].date_created, 'h:mm a');
+			// 	s_form.observations[index].new_image = '';
+			// }
 			// console.log(JSON.parse(JSON.stringify(s_form.observations)));
 			tab_enabed_array.value[1] = true;
 			tab_enabed_array.value[2] = true;
@@ -262,12 +276,13 @@ export default {
 				o_form.note = this_observation.note;
 				o_form.dimension_id = this_observation.dimension_id;
 				o_form.indicator_id = this_observation.indicator_id;
+				o_form.attendee_code = this_observation.attendee_code;
 				o_form.date_updated = this_observation.date_updated;
 				o_form.image = this_observation.image?.id;
 			} else {
 				console.log('clearing out form');
 				o_form.image = o_form.image_temp = o_form.image_removed = null;
-				o_form.id = o_form.note = o_form.dimension_id = o_form.indicator_id = o_form.date_updated = '';
+				o_form.id = o_form.note = o_form.dimension_id = o_form.indicator_id = o_form.attendee_code = o_form.date_updated = '';
 				o_form.is_starred = false;
 			}
 		}
@@ -564,6 +579,7 @@ export default {
 									<q-icon v-if="observation.is_starred" color="secondary" name="grade" />
 									<q-icon v-else color="secondary" name="star_border" />
 									{{observation.time_created}}
+									<div style="float: right">{{observation.attendee_code}}</div>
 								</q-item-label>
 								<q-separator />
 								<q-item-label>{{observation.note}}</q-item-label>
@@ -602,8 +618,27 @@ export default {
 								<br />Adding:-->
 								<a v-if="o_form.image_temp" href="#" @click="observation_show_photo = true"><img :src="o_form.image_temp" style="max-width: 100%;" /></a>
 								<q-input outlined label="Note" v-model="o_form.note" type="textarea" style="margin-bottom: 10px"></q-input>
-								<q-select outlined label="Dimension" v-model="o_form.dimension_id" emit-value map-options @update:model-value="o_form.indicator_id = null;" :options="Object.values(user.fdis.data[s_form.framework_id].dimensions)" :option-label="(opt) => (Object(opt) === opt && 'dimension_name' in opt ? opt.dimension_name : null)" :option-value="(opt) => (Object(opt) === opt && 'dimension_id' in opt ? opt.dimension_id : null)" style="margin-bottom: 10px"></q-select>
+								<q-select outlined label="Dimension" v-model="o_form.dimension_id" emit-value map-options @update:model-value="o_form.indicator_id = null;" :options="Object.values(user.fdis.data[s_form.framework_id].dimensions)" :option-label="(opt) => (Object(opt) === opt && 'dimension_name' in opt ? opt.dimension_name : null)" :option-value="(opt) => (Object(opt) === opt && 'dimension_id' in opt ? opt.dimension_id : null)" style="margin-bottom: 10px">
+									<template v-slot:selected-item="{ opt }">
+										<div :style="'width: 20px;height: 20px;margin-right: 5px;border-radius:10px;background-color:'+opt.dimension_color"></div>
+										{{opt.dimension_name}}
+									</template>
+									<!--<template v-slot:prepend>
+										<div :style="'width: 20px;height: 20px;border-radius:10px;background-color:'">{{o_form.dimension_id}}</div>
+									</template>-->
+									<template v-slot:option="{ itemProps, opt, selected, toggleOption }">
+										<q-item v-bind="itemProps">
+										<q-item-section side>
+											<div :style="'width: 20px;height: 20px;border-radius:10px;background-color:'+opt.dimension_color"></div>
+										</q-item-section side>
+										<q-item-section>
+											<q-item-label v-html="opt.dimension_name" />
+										</q-item-section>
+										</q-item>
+									</template>
+								</q-select>
 								<q-select :disable="!o_form.dimension_id" outlined label="Indicator" v-model="o_form.indicator_id" emit-value map-options :options="local_indicators_list[o_form.dimension_id]" style="margin-bottom: 10px"></q-select>
+								<q-input outlined label="Attendee Code" v-model="o_form.attendee_code" type="text" style="margin-bottom: 10px"></q-input>
 
 								<q-btn v-if="!o_form.id" :loading="o_form.saving" color="primary" :disable="!tab_1_button_enabled" style="width: 100%" @click="save_observation(o_form.id, s_form.id)">Save Observation</q-btn>
 								<div v-if="o_form.id" class="row no-wrap">
@@ -679,6 +714,7 @@ export default {
 
 				<q-tab-panel name="summary" style="height: calc(100vh - 89px)">
 					<div class="text-h6">Summary</div>
+					<q-input outlined label="Attendance" type="number" step="any" v-model="s_form.attendance_count" style="margin-bottom: 10px"></q-input>
 					<div class="q-mt-md" v-if="user.institution.data.session_slider_1_question">
 						{{user.institution.data.session_slider_1_question}}
 						<q-slider v-model="s_form.slider_1" :min="0" :max="100" label color="light-green" />
@@ -688,7 +724,7 @@ export default {
 							<div class="text-right" style="width: 33%;">{{user.institution.data.session_slider_1_label_high}}</div>
 						</div>
 					</div>
-					<div class="q-mt-md" v-if="user.institution.data.session_slider_1_question">
+					<div class="q-mt-md" v-if="user.institution.data.session_slider_2_question">
 						{{user.institution.data.session_slider_2_question}}
 						<q-slider v-model="s_form.slider_2" :min="0" :max="100" label color="light-green" />
 						<div class="row no-wrap full-width">
@@ -697,7 +733,7 @@ export default {
 							<div class="text-right" style="width: 33%;">{{user.institution.data.session_slider_2_label_high}}</div>
 						</div>
 					</div>
-					<div class="q-mt-md" v-if="user.institution.data.session_slider_1_question">
+					<div class="q-mt-md" v-if="user.institution.data.session_slider_3_question">
 						{{user.institution.data.session_slider_3_question}}
 						<q-slider v-model="s_form.slider_3" :min="0" :max="100" label color="light-green" />
 						<div class="row no-wrap full-width">
