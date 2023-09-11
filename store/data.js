@@ -32,6 +32,7 @@ export const data = Vue.reactive({
 				location_id: s_form.location_id,
 				framework_id: s_form.framework_id,
 				partner_id: s_form.partner_id,
+				attendance_count: s_form.attendance_count,
 				slider_1: s_form.slider_1,
 				slider_2: s_form.slider_2,
 				slider_3: s_form.slider_3,
