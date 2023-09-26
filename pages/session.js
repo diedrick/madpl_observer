@@ -127,6 +127,9 @@ export default {
 					// TODO do we need to change the URL, or forward them for real?
 					// turn off loading indicator
 					s_form.loading_start_session = false;
+					load_session_and_observations(fc_results.id);
+					// tab_enabed_array.value[2] = true;
+					// tab_enabed_array.value[3] = true;
 				} else {
 					console.log('---> NO!');
 				}
