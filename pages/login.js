@@ -114,7 +114,7 @@ export default {
 						</q-card-section>
 						<q-card-section>
 							<q-btn class="q-mb-lg" @click="form.email = 'RMillerjohn@madisonpubliclibrary.org';form.pw = 'secret'">Load Rebecca/IM</q-btn>
-							<q-btn class="q-mb-lg" @click="form.email = 'saplan@wisc.edu';form.pw = 'secret'">Load Kai/O</q-btn>
+							<q-btn class="q-mb-lg" @click="form.email = 'liyouth@madisonpubliclibrary.org';form.pw = 'wonderscope'">Load Advisory Board User/O</q-btn>
 							<q-form @submit="login" @reset="reset()">
 								<q-input filled type="email" v-model="form.email" label="E-mail" lazy-rules :rules="[val => !!val]" autocomplete="email" />
 								<q-input filled v-model="form.pw" label="Password" :type="form.pwdVisible ? 'text' : 'password'" lazy-rules :rules="[val => !!val]" autocomplete="current-password">
